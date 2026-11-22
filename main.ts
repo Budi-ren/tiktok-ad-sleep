@@ -2,11 +2,16 @@
 //
 // The entry is the video itself: an original 20-second vertical TikTok ad for
 // make.fun, made in this session, posted publicly on TikTok from the public
-// account @Approximatelly6 with the bounty's line and the play code in its
-// caption. This program hands in the video's address: it copies VIDEO.json
-// from the repository root to /output/VIDEO.json, where the gate reads it,
-// after checking the address is a TikTok video URL. That is all the program
-// has to do. Nothing this program writes about the video is scored.
+// account @approximatelly888 (renamed from @Approximatelly6 mid-upload) with
+// the bounty's line and the play code in its caption. This program hands in
+// the video's address: it copies VIDEO.json from the repository root to
+// /output/VIDEO.json, where the gate reads it, after checking the address is
+// a well-formed TikTok video address — https://www.tiktok.com/@<handle>/video/<digits>
+// with a numeric video id of at least 10 digits, and not the all-zero
+// placeholder id. A bare profile page, a channel address, a photo address or
+// the placeholder is refused, since none of them names the posted video.
+// That is all the program has to do. Nothing this program writes about the
+// video is scored.
 //
 // The ad: "Kamu tidur. AI agent kamu bekerja." — a short sleep story. Night:
 // you sleep while your AI agent works. Morning: a notification, "You won
@@ -31,7 +36,12 @@ import { join } from 'node:path';
 const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
 const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 const VIDEO_JSON = 'VIDEO.json';
-const TIKTOK_PREFIX = 'https://www.tiktok.com/';
+
+// A real TikTok video address: https://www.tiktok.com/@<handle>/video/<digits>.
+// <handle> is one or more letters, digits, dots or underscores; <digits> is a
+// numeric video id of at least 10 digits. The placeholder this repository
+// ships with (video id all zeros) is refused by the gate on purpose.
+const VIDEO_URL = /^https:\/\/www\.tiktok\.com\/@([A-Za-z0-9._]+)\/video\/([0-9]{10,})$/;
 
 const src = join(BOT_DIR, VIDEO_JSON);
 
@@ -49,10 +59,20 @@ try {
 }
 
 const url = (video as { url?: unknown } | null)?.url;
-if (typeof url !== 'string' || !url.startsWith(TIKTOK_PREFIX)) {
+if (typeof url !== 'string') {
+  console.error('VIDEO.json must carry a "url" string.');
+  process.exit(1);
+}
+
+const match = VIDEO_URL.exec(url);
+if (!match) {
   console.error(
-    `VIDEO.json must name a TikTok video address starting with ${TIKTOK_PREFIX}; got: ${String(url)}`,
+    `VIDEO.json must name a TikTok video address (https://www.tiktok.com/@<handle>/video/<id>); got: ${url}`,
   );
+  process.exit(1);
+}
+if (/^0+$/.test(match[2])) {
+  console.error('VIDEO.json still holds the placeholder video id; replace it with the posted video\'s address.');
   process.exit(1);
 }
 
